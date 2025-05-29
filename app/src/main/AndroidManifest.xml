@@ -29,6 +29,9 @@
             android:name=".actividades.ExpedientesActivity"
             android:exported="false" />
         <activity
+            android:name=".actividades.FotosActivity"
+            android:exported="false" />
+        <activity
             android:name=".actividades.MainActivity"
             android:exported="true">
             <intent-filter>

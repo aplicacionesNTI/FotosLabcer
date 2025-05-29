@@ -1,5 +1,6 @@
 package com.itevebasa.fotoslabcer.actividades
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
@@ -23,7 +24,10 @@ class MainActivity : AppCompatActivity() {
         val password: EditText = findViewById(R.id.password)
         val loginBtn: Button = findViewById(R.id.loginBtn)
         loginBtn.setOnClickListener{
-
+            val intent = Intent(this, ExpedientesActivity::class.java).apply {
+                putExtra("usuario", usuario.text.toString())
+            }
+            startActivity(intent)
         }
     }
 }

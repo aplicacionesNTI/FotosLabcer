@@ -14,7 +14,7 @@ class ExpedienteAdapter(
 ) : RecyclerView.Adapter<ExpedienteAdapter.ExpedienteViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ExpedienteViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.activity_expedientes, parent, false)
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.expedientes_adapter, parent, false)
         return ExpedienteViewHolder(view)
     }
 

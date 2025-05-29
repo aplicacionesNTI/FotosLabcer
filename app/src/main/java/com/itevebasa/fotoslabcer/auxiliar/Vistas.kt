@@ -76,7 +76,6 @@ class Vistas {
                 extraImageViews.remove(imgView)
                 imgView.setImageDrawable(null)
                 container.removeView(cardView)
-                VariablesGlobales.cantFotosExtra--
                 dialog.dismiss()
             }
             volverButton.setOnClickListener{
