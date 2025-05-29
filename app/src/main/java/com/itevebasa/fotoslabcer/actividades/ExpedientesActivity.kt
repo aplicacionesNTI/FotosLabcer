@@ -61,8 +61,9 @@ class ExpedientesActivity : AppCompatActivity() {
     private fun fetchData() {
         swipeRefreshLayout.isRefreshing = true
         expedienteList.clear()
-        expedienteList.add(Expediente("85/74/85-qweq54"))
-        expedienteList.add(Expediente("95/84/84-asda985"))
+        expedienteList.add(Expediente("8585-qweq54"))
+        expedienteList.add(Expediente("9584-asda985"))
+        expedienteList.add(Expediente("9999-ert94"))
         adapter.notifyDataSetChanged()
         swipeRefreshLayout.isRefreshing = false
     }

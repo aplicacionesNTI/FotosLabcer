@@ -68,10 +68,10 @@ class Imagenes {
         }
 
         //Crea el archivo de imagen en la carpeta de pictures/MyAppImages de la aplicacion
-        fun createImageFile(context: Context): File {
+        fun createImageFile(context: Context, carpeta: String): File {
             // Verificar si el directorio de almacenamiento existe, si no, crearlo
             val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)!!
-            val dir = File(storageDir, "MyAppImages")
+            val dir = File(storageDir, carpeta)
             if (!dir.exists()) {
                 dir.mkdirs()
             }
@@ -131,10 +131,10 @@ class Imagenes {
         }
 
         //Guarda los metadatos de la imagen, la guarda en el dispositivo y devuelve el uri de la imagen modificada
-        fun guardarImagenConMetadatos(context: Context, bitmap: Bitmap, location: Location?): Uri? {
+        fun guardarImagenConMetadatos(context: Context, bitmap: Bitmap, location: Location?, carpeta: String): Uri? {
             val fileName = "photo_${System.currentTimeMillis()}.jpg"
             val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
-            val dir = File(storageDir, "MyAppImages")
+            val dir = File(storageDir, carpeta)
             val imageFile = File(dir, fileName)
 
             try {

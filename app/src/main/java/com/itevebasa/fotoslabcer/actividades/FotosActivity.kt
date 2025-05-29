@@ -9,6 +9,7 @@ import android.location.Location
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
 import android.view.Gravity
@@ -41,14 +42,15 @@ import com.itevebasa.fotoslabcer.auxiliar.Permisos
 import com.itevebasa.fotoslabcer.auxiliar.Vistas
 import com.itevebasa.fotoslabcer.modelos.DetallesViewModel
 import kotlinx.coroutines.launch
+import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 class FotosActivity: AppCompatActivity()  {
 
+    private var expediente: String = ""
+    private var tempFile: File? = null
     private val imageViews = mutableListOf<ImageView>()
-    private var currentRowLayout: LinearLayout? = null
-    private var imageCount = 0
     private var location: Location? = null
     private var selectedImageView: ImageView? = null
     private var photoUri: Uri? = null
@@ -65,6 +67,7 @@ class FotosActivity: AppCompatActivity()  {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
+        expediente = intent.getStringExtra("expediente")!!
         val addButton = findViewById<Button>(R.id.addButton)
         val enviarButton = findViewById<Button>(R.id.enviarButton)
         val contenedor: LinearLayout = findViewById(R.id.contenedor)
@@ -74,6 +77,7 @@ class FotosActivity: AppCompatActivity()  {
             location = Localizacion.getCurrentLocation(this@FotosActivity)
             progressDialog.dismiss()
         }
+        mostrarImagenesExistentes(this, contenedor, expediente)
         addButton.setOnClickListener {
             addImageCard(this, contenedor)
         }
@@ -112,15 +116,20 @@ class FotosActivity: AppCompatActivity()  {
                             reducedPhoto,
                             LocalDateTime.now().format(formatter).toString()
                         )
-
                         // Guardar la imagen con metadatos EXIF (solo si hay ubicación)
                         photoUri = Imagenes.guardarImagenConMetadatos(
                             this@FotosActivity,
                             imageWithWatermark,
-                            location
+                            location,
+                            expediente
                         )
                         selectedImageView?.setImageURI(photoUri)
                         selectedImageView?.tag = photoUri
+                        // Borrar el archivo JPEG_ original
+                        println(tempFile)
+                        if (tempFile?.exists() == true) {
+                            tempFile?.delete()
+                        }
 
                     } else {
                         Log.e("DetallesActivity", "No se pudo decodificar la imagen desde la URI.")
@@ -154,8 +163,9 @@ class FotosActivity: AppCompatActivity()  {
     // Función para abrir la cámara
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private fun openCamera() {
-        val photoFile = Imagenes.createImageFile(this)
+        val photoFile = Imagenes.createImageFile(this, expediente)
         photoUri = FileProvider.getUriForFile(this, "${packageName}.provider", photoFile)
+        tempFile = photoFile
         val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE).apply {
             putExtra(MediaStore.EXTRA_OUTPUT, photoUri) // Guardar la foto en el archivo
         }
@@ -233,6 +243,119 @@ class FotosActivity: AppCompatActivity()  {
         }
 
         container.addView(rowLayout)
+    }
+
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    private fun mostrarImagenesExistentes(context: Context, container: LinearLayout, expediente: String) {
+        val dir = File(context.getExternalFilesDir(Environment.DIRECTORY_PICTURES), expediente)
+        if (!dir.exists() || !dir.isDirectory) return
+
+        val imageFiles = dir.listFiles { file ->
+            file.name.startsWith("photo_") && file.name.endsWith(".jpg")
+        }?.sortedBy { it.lastModified() } ?: return
+
+        val imagesPerRow = 3
+        var currentRow: LinearLayout? = null
+        var itemsInRow = 0
+
+        imageFiles.forEachIndexed { index, file ->
+            if (index % imagesPerRow == 0) {
+                // Crea nueva fila
+                currentRow = LinearLayout(context).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply {
+                        setMargins(0, dpToPx(context, 8), 0, dpToPx(context, 8))
+                    }
+                    gravity = Gravity.CENTER
+                    weightSum = 3f
+                }
+                container.addView(currentRow)
+                itemsInRow = 0
+            }
+
+            val cardView = crearCardConImagen(context, container, Uri.fromFile(file))
+            currentRow?.addView(cardView)
+            itemsInRow++
+        }
+
+        // Si la última fila tiene menos de 3 imágenes, completar con tarjetas vacías funcionales
+        if (itemsInRow in 1..2) {
+            repeat(3 - itemsInRow) {
+                val emptyCard = crearCardVaciaPulsable(context, container)
+                currentRow?.addView(emptyCard)
+            }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    private fun crearCardConImagen(context: Context, container: LinearLayout, uri: Uri): CardView {
+        val cardView = CardView(context).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                1f
+            ).apply {
+                setMargins(dpToPx(context, 4), 0, dpToPx(context, 4), 0)
+            }
+            radius = dpToPxF(context, 16)
+            cardElevation = dpToPxF(context, 6)
+            preventCornerOverlap = true
+            useCompatPadding = true
+        }
+
+        val imageView = ImageView(context).apply {
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dpToPx(context, 100)
+            )
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            setImageURI(uri)
+            tag = uri
+            setOnClickListener {
+                openImagePreview(cardView, container, this)
+            }
+        }
+
+        imageViews.add(imageView)
+        cardView.addView(imageView)
+        return cardView
+    }
+
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    private fun crearCardVaciaPulsable(context: Context, container: LinearLayout): CardView {
+        val cardView = CardView(context).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                1f
+            ).apply {
+                setMargins(dpToPx(context, 4), 0, dpToPx(context, 4), 0)
+            }
+            radius = dpToPxF(context, 16)
+            cardElevation = dpToPxF(context, 6)
+            preventCornerOverlap = true
+            useCompatPadding = true
+        }
+
+        val imageView = ImageView(context).apply {
+            id = View.generateViewId()
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dpToPx(context, 100)
+            )
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            setOnClickListener {
+                selectedImageView = this
+                openCamera()
+            }
+        }
+
+        imageViews.add(imageView)
+        cardView.addView(imageView)
+        return cardView
     }
 
     private fun dpToPx(context: Context, dp: Int): Int {
