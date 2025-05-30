@@ -7,10 +7,11 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.itevebasa.fotoslabcer.R
 import com.itevebasa.fotoslabcer.modelos.Expediente
+import com.itevebasa.fotoslabcer.modelos.Inspeccion
 
 class ExpedienteAdapter(
-    private val expedienteList: List<Expediente>,
-    private val onItemClick: (Expediente) -> Unit
+    private val inspeccionList: List<Inspeccion>,
+    private val onItemClick: (Inspeccion) -> Unit
 ) : RecyclerView.Adapter<ExpedienteAdapter.ExpedienteViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ExpedienteViewHolder {
@@ -19,8 +20,8 @@ class ExpedienteAdapter(
     }
 
     override fun onBindViewHolder(holder: ExpedienteViewHolder, position: Int) {
-        val expediente = expedienteList[position]
-        holder.nombreText.text = "Nombre: " + expediente.nombre
+        val expediente = inspeccionList[position]
+        holder.nombreText.text = "Acta: " + expediente.acta
 
 
         holder.itemView.setOnClickListener {
@@ -28,7 +29,7 @@ class ExpedienteAdapter(
         }
     }
 
-    override fun getItemCount(): Int = expedienteList.size
+    override fun getItemCount(): Int = inspeccionList.size
 
     class ExpedienteViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val nombreText: TextView = itemView.findViewById(R.id.nombreText)

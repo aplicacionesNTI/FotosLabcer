@@ -1,33 +1,43 @@
 package com.itevebasa.fotoslabcer.actividades
 
-import android.annotation.SuppressLint
+import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
-import android.widget.Toast
+import android.widget.Button
+import android.widget.EditText
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.itevebasa.fotoslabcer.R
 import com.itevebasa.fotoslabcer.adaptadores.ExpedienteAdapter
+import com.itevebasa.fotoslabcer.adaptadores.GuidAdapter
 import com.itevebasa.fotoslabcer.auxiliar.Permisos
-import com.itevebasa.fotoslabcer.modelos.Expediente
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
+import com.itevebasa.fotoslabcer.conexion.AppDatabase
+import com.itevebasa.fotoslabcer.daos.InspeccionDao
+import com.itevebasa.fotoslabcer.modelos.Inspeccion
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class ExpedientesActivity : AppCompatActivity() {
 
     private lateinit var recyclerView: RecyclerView
+    private lateinit var abiertasRecyclerView: RecyclerView
     private lateinit var adapter: ExpedienteAdapter
-    private var expedienteList: MutableList<Expediente> = mutableListOf()
+    private lateinit var adapterAbiertas: GuidAdapter
+    private var inspeccionesAbiertasList: MutableList<Inspeccion> = mutableListOf()
+    private var inspeccionesTerminadasList: MutableList<Inspeccion> = mutableListOf()
     private lateinit var swipeRefreshLayout: SwipeRefreshLayout
+    private lateinit var abiertasSwipeRefreshLayout: SwipeRefreshLayout
+    private lateinit var nombreEdit: EditText
+    private lateinit var db: AppDatabase
+    private lateinit var dao: InspeccionDao
 
     @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -42,29 +52,88 @@ class ExpedientesActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
-        swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout)
-        recyclerView = findViewById(R.id.recyclerview)
-        recyclerView.layoutManager = LinearLayoutManager(this)
-        adapter = ExpedienteAdapter(expedienteList) { expediente ->
+        nombreEdit = findViewById(R.id.nombreEdit)
+        nombreEdit.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus && nombreEdit.text.toString() == getString(R.string.nombre)) {
+                nombreEdit.text.clear()
+            }
+        }
+        db = AppDatabase.getDatabase(this)
+        dao = db.inspeccionDao()
+        val sharedPreferences = getSharedPreferences("login_prefs", Context.MODE_PRIVATE)
+        val cerrarSesionBtn: Button = findViewById(R.id.cerrarSesionBtn)
+        cerrarSesionBtn.setOnClickListener{
+            sharedPreferences.edit().clear().apply()
+            val intent = Intent(this, MainActivity::class.java)
+            startActivity(intent)
+        }
+        val inspeccionBtn: Button = findViewById(R.id.inspeccionBtn)
+        inspeccionBtn.setOnClickListener{
             val intent = Intent(this, FotosActivity::class.java).apply {
-                putExtra("expediente", expediente.nombre)
+                putExtra("nombre", nombreEdit.text.toString())
             }
             startActivity(intent)
         }
-        fetchData()
+        abiertasSwipeRefreshLayout = findViewById(R.id.abiertasSwipeRefreshLayout)
+        abiertasRecyclerView = findViewById(R.id.abiertasRecyclerview)
+        abiertasRecyclerView.layoutManager = LinearLayoutManager(this)
+        adapterAbiertas = GuidAdapter(inspeccionesAbiertasList) { inspeccion ->
+            val intent = Intent(this, FotosActivity::class.java).apply {
+                putExtra("guid", inspeccion.guid)
+            }
+            startActivity(intent)
+        }
+        swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout)
+        recyclerView = findViewById(R.id.recyclerview)
+        recyclerView.layoutManager = LinearLayoutManager(this)
+        adapter = ExpedienteAdapter(inspeccionesTerminadasList) { inspeccion ->
+            val intent = Intent(this, FotosActivity::class.java).apply {
+                putExtra("guid", inspeccion.guid)
+            }
+            startActivity(intent)
+        }
+        fetchTerminadas()
+        fetchAbiertas()
         recyclerView.adapter = adapter
+        abiertasRecyclerView.adapter = adapterAbiertas
+        adapter.notifyDataSetChanged()
+        adapterAbiertas.notifyDataSetChanged()
         swipeRefreshLayout.setOnRefreshListener {
-            fetchData()
+            fetchTerminadas()
+            adapter.notifyDataSetChanged()
+        }
+        abiertasSwipeRefreshLayout.setOnRefreshListener {
+            fetchAbiertas()
+            adapterAbiertas.notifyDataSetChanged()
         }
     }
 
-    private fun fetchData() {
-        swipeRefreshLayout.isRefreshing = true
-        expedienteList.clear()
-        expedienteList.add(Expediente("8585-qweq54"))
-        expedienteList.add(Expediente("9584-asda985"))
-        expedienteList.add(Expediente("9999-ert94"))
+    override fun onResume() {
+        super.onResume()
+        fetchTerminadas()
+        fetchAbiertas()
         adapter.notifyDataSetChanged()
-        swipeRefreshLayout.isRefreshing = false
+        adapterAbiertas.notifyDataSetChanged()
+        nombreEdit.setText("Nombre")
+    }
+
+    private fun fetchTerminadas() {
+        swipeRefreshLayout.isRefreshing = true
+        lifecycleScope.launch(Dispatchers.IO) {
+            val inspeccionesTerminadas = dao.obtenerInspeccionesConExpediente()
+            inspeccionesTerminadasList.clear()
+            inspeccionesTerminadasList.addAll(inspeccionesTerminadas)
+            swipeRefreshLayout.isRefreshing = false
+        }
+    }
+
+    private fun fetchAbiertas(){
+        abiertasSwipeRefreshLayout.isRefreshing = true
+        lifecycleScope.launch(Dispatchers.IO) {
+            val inspeccionesAbiertas = dao.obtenerInspeccionesSinExpediente()
+            inspeccionesAbiertasList.clear()
+            inspeccionesAbiertasList.addAll(inspeccionesAbiertas)
+            abiertasSwipeRefreshLayout.isRefreshing = false
+        }
     }
 }

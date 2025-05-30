@@ -6,8 +6,14 @@
     <string name="preview_foto">Preview Foto</string>
     <string name="volver">Volver</string>
     <string name="borrar_imagen">Borrar</string>
-    <string name="expedientes">Expedientes:</string>
+    <string name="expedientes">Historial de inspecciones</string>
     <string name="enviar_fotos">Enviar fotos</string>
     <string name="fotograf_as">Fotografías</string>
     <string name="agregar_nueva_foto">Agregar nuevas fotos</string>
+    <string name="iniciar_inspecci_n">Iniciar inspección</string>
+    <string name="nombre">Nombre</string>
+    <string name="inspecciones_abiertas">Inspecciones abiertas</string>
+    <string name="nueva_inspecci_n">Nueva inspección</string>
+    <string name="recordar_usuario">Recordar usuario</string>
+    <string name="cerrar_sesi_n">Cerrar sesión</string>
 </resources>

@@ -12,6 +12,7 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.cardview.widget.CardView
 import com.itevebasa.fotoslabcer.R
+import java.io.File
 
 class Vistas {
     companion object{
@@ -73,6 +74,13 @@ class Vistas {
                 metadataTextView.text = "No se encontraron metadatos."
             }
             deleteButton.setOnClickListener {
+                if (uri != null) {
+                    val file = File(uri.path!!)
+                    if (file.exists()) {
+                        file.delete()
+                    }
+                }
+
                 extraImageViews.remove(imgView)
                 imgView.setImageDrawable(null)
                 container.removeView(cardView)

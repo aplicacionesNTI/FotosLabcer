@@ -40,21 +40,29 @@ import com.itevebasa.fotoslabcer.auxiliar.Imagenes
 import com.itevebasa.fotoslabcer.auxiliar.Localizacion
 import com.itevebasa.fotoslabcer.auxiliar.Permisos
 import com.itevebasa.fotoslabcer.auxiliar.Vistas
+import com.itevebasa.fotoslabcer.conexion.AppDatabase
+import com.itevebasa.fotoslabcer.daos.InspeccionDao
 import com.itevebasa.fotoslabcer.modelos.DetallesViewModel
+import com.itevebasa.fotoslabcer.modelos.Inspeccion
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.UUID
 
 class FotosActivity: AppCompatActivity()  {
 
-    private var expediente: String = ""
+    private var guid: String? = null
+    private var nombre: String? = null
     private var tempFile: File? = null
     private val imageViews = mutableListOf<ImageView>()
     private var location: Location? = null
     private var selectedImageView: ImageView? = null
     private var photoUri: Uri? = null
     private lateinit var viewModel: DetallesViewModel
+    private lateinit var db: AppDatabase
+    private lateinit var dao: InspeccionDao
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     @SuppressLint("MissingPermission")
@@ -67,7 +75,8 @@ class FotosActivity: AppCompatActivity()  {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
-        expediente = intent.getStringExtra("expediente")!!
+        db = AppDatabase.getDatabase(this)
+        dao = db.inspeccionDao()
         val addButton = findViewById<Button>(R.id.addButton)
         val enviarButton = findViewById<Button>(R.id.enviarButton)
         val contenedor: LinearLayout = findViewById(R.id.contenedor)
@@ -77,13 +86,29 @@ class FotosActivity: AppCompatActivity()  {
             location = Localizacion.getCurrentLocation(this@FotosActivity)
             progressDialog.dismiss()
         }
-        mostrarImagenesExistentes(this, contenedor, expediente)
+        guid = intent.getStringExtra("guid")
+        nombre = intent.getStringExtra("nombre")
+        if (guid == null){
+            guid = UUID.randomUUID().toString()
+            lifecycleScope.launch(Dispatchers.IO) {
+                dao.insertarInspeccion(Inspeccion(guid = guid!!, nombre, null, null))
+            }
+        }else{
+            lifecycleScope.launch(Dispatchers.IO) {
+                mostrarImagenesExistentes(this@FotosActivity, contenedor, guid!!)
+            }
+        }
         addButton.setOnClickListener {
             addImageCard(this, contenedor)
         }
         enviarButton.setOnClickListener {
             mostrarDialogoActa { actaTexto ->
-               Toast.makeText(this, "Enviado", Toast.LENGTH_SHORT).show()
+                lifecycleScope.launch(Dispatchers.IO) {
+                    dao.actualizarExpedientePorGuid(guid!!, "Ejemplo expediente", actaTexto)
+                    Toast.makeText(this@FotosActivity, "Fotos enviadas con éxito", Toast.LENGTH_SHORT).show()
+                    val intent = Intent(this@FotosActivity, ExpedientesActivity::class.java)
+                    startActivity(intent)
+                }
             }
         }
     }
@@ -121,7 +146,7 @@ class FotosActivity: AppCompatActivity()  {
                             this@FotosActivity,
                             imageWithWatermark,
                             location,
-                            expediente
+                            guid!!
                         )
                         selectedImageView?.setImageURI(photoUri)
                         selectedImageView?.tag = photoUri
@@ -130,7 +155,6 @@ class FotosActivity: AppCompatActivity()  {
                         if (tempFile?.exists() == true) {
                             tempFile?.delete()
                         }
-
                     } else {
                         Log.e("DetallesActivity", "No se pudo decodificar la imagen desde la URI.")
                     }
@@ -163,7 +187,7 @@ class FotosActivity: AppCompatActivity()  {
     // Función para abrir la cámara
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private fun openCamera() {
-        val photoFile = Imagenes.createImageFile(this, expediente)
+        val photoFile = Imagenes.createImageFile(this, guid!!)
         photoUri = FileProvider.getUriForFile(this, "${packageName}.provider", photoFile)
         tempFile = photoFile
         val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE).apply {
@@ -246,8 +270,8 @@ class FotosActivity: AppCompatActivity()  {
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-    private fun mostrarImagenesExistentes(context: Context, container: LinearLayout, expediente: String) {
-        val dir = File(context.getExternalFilesDir(Environment.DIRECTORY_PICTURES), expediente)
+    private fun mostrarImagenesExistentes(context: Context, container: LinearLayout, guid: String) {
+        val dir = File(context.getExternalFilesDir(Environment.DIRECTORY_PICTURES), guid)
         if (!dir.exists() || !dir.isDirectory) return
 
         val imageFiles = dir.listFiles { file ->
