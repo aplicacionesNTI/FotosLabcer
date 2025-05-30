@@ -69,10 +69,15 @@ class ExpedientesActivity : AppCompatActivity() {
         }
         val inspeccionBtn: Button = findViewById(R.id.inspeccionBtn)
         inspeccionBtn.setOnClickListener{
-            val intent = Intent(this, FotosActivity::class.java).apply {
-                putExtra("nombre", nombreEdit.text.toString())
+            if (nombreEdit.text.toString() != "" && nombreEdit.text.toString() != "Nombre"){
+                val intent = Intent(this, FotosActivity::class.java).apply {
+                    putExtra("nombre", nombreEdit.text.toString())
+                }
+                startActivity(intent)
+            }else{
+                nombreEdit.error = "Escribe un nombre para la inspección"
             }
-            startActivity(intent)
+
         }
         abiertasSwipeRefreshLayout = findViewById(R.id.abiertasSwipeRefreshLayout)
         abiertasRecyclerView = findViewById(R.id.abiertasRecyclerview)
