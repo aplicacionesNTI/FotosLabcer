@@ -12,12 +12,36 @@
         android:text="Tienes 0 fotos actualmente"
         android:textSize="16sp" />
 
-    <EditText
-        android:id="@+id/actaInput"
+    <TextView
+        android:id="@+id/expedienteText"
+        android:layout_marginTop="16dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Expediente:"
+        android:textSize="16sp" />
+
+    <Spinner
+        android:id="@+id/spinner"
+        android:layout_marginTop="8dp"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Escribe el acta aquí"
-        android:inputType="textMultiLine"
-        android:minLines="3"
-        android:layout_marginTop="16dp" />
+        android:spinnerMode="dropdown" />
+
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:visibility="gone"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:max="100"
+        />
+
+    <TextView
+        android:id="@+id/envioText"
+        android:layout_marginTop="16dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:textSize="12sp" />
 </LinearLayout>

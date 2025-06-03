@@ -16,10 +16,14 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ProgressBar
+import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -39,16 +43,30 @@ import com.itevebasa.fotoslabcer.R
 import com.itevebasa.fotoslabcer.auxiliar.Imagenes
 import com.itevebasa.fotoslabcer.auxiliar.Localizacion
 import com.itevebasa.fotoslabcer.auxiliar.Permisos
+import com.itevebasa.fotoslabcer.auxiliar.VariablesGlobales
 import com.itevebasa.fotoslabcer.auxiliar.Vistas
 import com.itevebasa.fotoslabcer.conexion.AppDatabase
+import com.itevebasa.fotoslabcer.conexion.RetrofitClient
 import com.itevebasa.fotoslabcer.daos.InspeccionDao
 import com.itevebasa.fotoslabcer.modelos.DetallesViewModel
+import com.itevebasa.fotoslabcer.modelos.Expediente
+import com.itevebasa.fotoslabcer.modelos.FotoRequest
+import com.itevebasa.fotoslabcer.modelos.FotoResponse
 import com.itevebasa.fotoslabcer.modelos.Inspeccion
+import com.itevebasa.fotoslabcer.modelos.PaginarRequest
+import com.itevebasa.fotoslabcer.modelos.PaginarResponse
+import com.itevebasa.fotoslabcer.modelos.Usuario
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.ArrayList
 import java.util.UUID
 
 class FotosActivity: AppCompatActivity()  {
@@ -102,12 +120,12 @@ class FotosActivity: AppCompatActivity()  {
             addImageCard(this, contenedor)
         }
         enviarButton.setOnClickListener {
-            mostrarDialogoActa { actaTexto ->
+            mostrarDialogoActa { expediente ->
                 lifecycleScope.launch(Dispatchers.IO) {
-                    dao.actualizarExpedientePorGuid(guid!!, "Ejemplo expediente", actaTexto)
+                    /*dao.actualizarExpedientePorGuid(guid!!, expediente.codigoExpediente, expediente.id)
                     Toast.makeText(this@FotosActivity, "Fotos enviadas con éxito", Toast.LENGTH_SHORT).show()
                     val intent = Intent(this@FotosActivity, ExpedientesActivity::class.java)
-                    startActivity(intent)
+                    startActivity(intent)*/
                 }
             }
         }
@@ -390,25 +408,126 @@ class FotosActivity: AppCompatActivity()  {
         return dp * context.resources.displayMetrics.density
     }
 
-    private fun mostrarDialogoActa(onConfirmar: (String) -> Unit) {
+    private fun mostrarDialogoActa(onConfirmar: (Expediente) -> Unit) {
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_acta, null)
-
+        val spinner = dialogView.findViewById<Spinner>(R.id.spinner)
         val fotoCountText = dialogView.findViewById<TextView>(R.id.fotoCountText)
-        val actaInput = dialogView.findViewById<EditText>(R.id.actaInput)
+        val paginarRequest = PaginarRequest("", "", 50, VariablesGlobales.user_id)
+        var paginarResponse: PaginarResponse
+        val valores = ArrayList<String>()
+        val expedientes = ArrayList<Expediente>()
+        var expedienteSeleccionado = Expediente()
+        val apiService = RetrofitClient.getApiService()
+        apiService.paginarExpedientes(paginarRequest).enqueue(object : Callback<PaginarResponse> {
+            @SuppressLint("SetTextI18n")
+            override fun onResponse(call: Call<PaginarResponse>, response: Response<PaginarResponse>) {
+                if (response.isSuccessful) {
+                    response.body()?.let {
+                        paginarResponse = it
+                        for (data in paginarResponse.data){
+                            if (data.codigoExpediente == "2/1/2/0/25-0006"){
+                                valores.add(data.codigoExpediente)
+                            }
+                            expedientes.add(data)
+                        }
+                        val adapter = ArrayAdapter(this@FotosActivity, android.R.layout.simple_spinner_item, valores)
+                        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                        spinner.adapter = adapter
+                        if (valores.isNotEmpty()) {
+                            expedienteSeleccionado = expedientes.first { it.codigoExpediente == valores[0] }
+                            spinner.setSelection(0)
+                        }
+                        spinner.post {
+                            spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                                override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
+                                    println(valores[position])
+                                    for (exp in expedientes){
+                                        if (exp.codigoExpediente == valores[position]){
+                                            expedienteSeleccionado = exp
+                                        }
+                                    }
+                                }
+                                override fun onNothingSelected(parent: AdapterView<*>) {
+                                }
+                            }
+                        }
+                        fotoCountText.text = "Tienes ${contarFotosReales()} fotos actualmente"
+                        val extraImages = mutableListOf<String>()
+                        val dialog = AlertDialog.Builder(this@FotosActivity)
+                            .setView(dialogView)
+                            .setTitle("Enviar Fotos")
+                            .setCancelable(false) // para evitar cierre accidental
+                            .setPositiveButton("Confirmar", null) // <- null para que NO cierre
+                            .setNegativeButton("Cancelar") { d, _ -> d.dismiss() }
+                            .create()
+                        dialog.setOnShowListener {
+                            val button = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                            button.setOnClickListener {
+                                val extraImages = mutableListOf<String>()
+                                imageViews.forEach { image ->
+                                    val encoded = Imagenes.encodeImageViewUriToBase64(image, this@FotosActivity)
+                                    if (!encoded.isNullOrBlank()) extraImages.add(encoded)
+                                }
+                                val progressBar = dialogView.findViewById<ProgressBar>(R.id.progressBar)
+                                progressBar.visibility = View.VISIBLE
+                                progressBar.progress = 0
+                                val envioText = dialogView.findViewById<TextView>(R.id.envioText)
+                                envioText.visibility = View.VISIBLE
 
-        fotoCountText.text = "Tienes ${contarFotosReales()} fotos actualmente"
+                                lifecycleScope.launch {
+                                    val errores = mutableListOf<String>()
+                                    val total = extraImages.size
 
-        val dialog = AlertDialog.Builder(this)
-            .setView(dialogView)
-            .setTitle("Enviar Fotos")
-            .setPositiveButton("Confirmar") { _, _ ->
-                val acta = actaInput.text.toString()
-                onConfirmar(acta)
+                                    for ((index, image) in extraImages.withIndex()) {
+                                        val codigo = expedienteSeleccionado.codigoExpediente + "_FO${index + 1}"
+                                        val fotoRequest = FotoRequest(codigo, codigo, codigo, VariablesGlobales.user_id, expedienteSeleccionado.id, 9, image)
+
+                                        val success = withContext(Dispatchers.IO) {
+                                            try {
+                                                val response = RetrofitClient.getApiService().subirFoto(fotoRequest).execute()
+                                                response.isSuccessful
+                                            } catch (e: Exception) {
+                                                false
+                                            }
+                                        }
+
+                                        if (!success) {
+                                            errores.add(codigo)
+                                        }
+                                        envioText.setText("Enviando " + fotoRequest.nombre)
+                                        progressBar.progress = ((index + 1) * 100) / total
+                                        delay(200)
+                                    }
+
+                                    progressBar.visibility = View.GONE
+
+                                    if (errores.isNotEmpty()) {
+                                        AlertDialog.Builder(this@FotosActivity)
+                                            .setTitle("Errores")
+                                            .setMessage("Fallaron las siguientes fotos:\n${errores.joinToString("\n")}")
+                                            .setPositiveButton("OK", null)
+                                            .show()
+                                    } else {
+                                        Toast.makeText(this@FotosActivity, "Fotos enviadas correctamente", Toast.LENGTH_SHORT).show()
+                                        dialog.dismiss()
+                                        onConfirmar(expedienteSeleccionado)
+                                    }
+                                }
+                            }
+                        }
+
+                        dialog.show()
+                    }
+                } else {
+                    Log.d("API", "ERROR: " + response.code())
+                }
             }
-            .setNegativeButton("Cancelar", null)
-            .create()
+            override fun onFailure(call: Call<PaginarResponse>, t: Throwable) {
+                Log.d("API", "Fallo llamada a la API: " + t.message)
+                Toast.makeText(this@FotosActivity, "Error: ${t.message}", Toast.LENGTH_SHORT).show()
+            }
+        })
 
-        dialog.show()
     }
 
     fun contarFotosReales(): Int {

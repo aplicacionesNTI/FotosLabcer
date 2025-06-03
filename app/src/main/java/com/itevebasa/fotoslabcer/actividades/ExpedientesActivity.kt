@@ -27,13 +27,9 @@ import kotlinx.coroutines.launch
 
 class ExpedientesActivity : AppCompatActivity() {
 
-    private lateinit var recyclerView: RecyclerView
     private lateinit var abiertasRecyclerView: RecyclerView
-    private lateinit var adapter: ExpedienteAdapter
     private lateinit var adapterAbiertas: GuidAdapter
     private var inspeccionesAbiertasList: MutableList<Inspeccion> = mutableListOf()
-    private var inspeccionesTerminadasList: MutableList<Inspeccion> = mutableListOf()
-    private lateinit var swipeRefreshLayout: SwipeRefreshLayout
     private lateinit var abiertasSwipeRefreshLayout: SwipeRefreshLayout
     private lateinit var nombreEdit: EditText
     private lateinit var db: AppDatabase
@@ -79,6 +75,11 @@ class ExpedientesActivity : AppCompatActivity() {
             }
 
         }
+        val historialBtn: Button = findViewById(R.id.historialBtn)
+        historialBtn.setOnClickListener{
+            val intent = Intent(this, HistorialActivity::class.java)
+            startActivity(intent)
+        }
         abiertasSwipeRefreshLayout = findViewById(R.id.abiertasSwipeRefreshLayout)
         abiertasRecyclerView = findViewById(R.id.abiertasRecyclerview)
         abiertasRecyclerView.layoutManager = LinearLayoutManager(this)
@@ -88,25 +89,12 @@ class ExpedientesActivity : AppCompatActivity() {
             }
             startActivity(intent)
         }
-        swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout)
-        recyclerView = findViewById(R.id.recyclerview)
-        recyclerView.layoutManager = LinearLayoutManager(this)
-        adapter = ExpedienteAdapter(inspeccionesTerminadasList) { inspeccion ->
-            val intent = Intent(this, FotosActivity::class.java).apply {
-                putExtra("guid", inspeccion.guid)
-            }
-            startActivity(intent)
-        }
-        fetchTerminadas()
+
         fetchAbiertas()
-        recyclerView.adapter = adapter
+
         abiertasRecyclerView.adapter = adapterAbiertas
-        adapter.notifyDataSetChanged()
+
         adapterAbiertas.notifyDataSetChanged()
-        swipeRefreshLayout.setOnRefreshListener {
-            fetchTerminadas()
-            adapter.notifyDataSetChanged()
-        }
         abiertasSwipeRefreshLayout.setOnRefreshListener {
             fetchAbiertas()
             adapterAbiertas.notifyDataSetChanged()
@@ -115,22 +103,11 @@ class ExpedientesActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        fetchTerminadas()
         fetchAbiertas()
-        adapter.notifyDataSetChanged()
         adapterAbiertas.notifyDataSetChanged()
         nombreEdit.setText("Nombre")
     }
 
-    private fun fetchTerminadas() {
-        swipeRefreshLayout.isRefreshing = true
-        lifecycleScope.launch(Dispatchers.IO) {
-            val inspeccionesTerminadas = dao.obtenerInspeccionesConExpediente()
-            inspeccionesTerminadasList.clear()
-            inspeccionesTerminadasList.addAll(inspeccionesTerminadas)
-            swipeRefreshLayout.isRefreshing = false
-        }
-    }
 
     private fun fetchAbiertas(){
         abiertasSwipeRefreshLayout.isRefreshing = true

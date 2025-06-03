@@ -26,6 +26,9 @@
         android:theme="@style/Theme.FotosLabcer"
         tools:targetApi="31">
         <activity
+            android:name=".actividades.HistorialActivity"
+            android:exported="false" />
+        <activity
             android:name=".actividades.ExpedientesActivity"
             android:exported="false" />
         <activity

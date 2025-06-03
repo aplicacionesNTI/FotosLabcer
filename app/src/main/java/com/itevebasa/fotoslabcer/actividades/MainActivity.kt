@@ -3,14 +3,22 @@ package com.itevebasa.fotoslabcer.actividades
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.itevebasa.fotoslabcer.R
+import com.itevebasa.fotoslabcer.auxiliar.VariablesGlobales
+import com.itevebasa.fotoslabcer.conexion.RetrofitClient
+import com.itevebasa.fotoslabcer.modelos.Usuario
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -28,14 +36,10 @@ class MainActivity : AppCompatActivity() {
         val checkbox: CheckBox = findViewById(R.id.checkBox)
         val recordar = sharedPreferences.getBoolean("recordar", false)
         if (recordar) {
-            usuario.setText(sharedPreferences.getString("usuario", ""))
-            password.setText(sharedPreferences.getString("password", ""))
+            VariablesGlobales.token = sharedPreferences.getString("token", "")!!
+            VariablesGlobales.user_id = sharedPreferences.getInt("user_id", 0)
             checkbox.isChecked = true
-
-            // Si quieres que entre automáticamente sin tocar el botón:
-            val intent = Intent(this, ExpedientesActivity::class.java).apply {
-                putExtra("usuario", sharedPreferences.getString("usuario", ""))
-            }
+            val intent = Intent(this, ExpedientesActivity::class.java)
             startActivity(intent)
             finish()
         }
@@ -44,20 +48,36 @@ class MainActivity : AppCompatActivity() {
         loginBtn.setOnClickListener{
             val usuarioTexto = usuario.text.toString()
             val passwordTexto = password.text.toString()
+            val apiService = RetrofitClient.getApiService()
+            apiService.login(usuarioTexto, passwordTexto).enqueue(object : Callback<Usuario> {
+                override fun onResponse(call: Call<Usuario>, response: Response<Usuario>) {
+                    if (response.isSuccessful) {
+                        response.body()?.let {
+                            VariablesGlobales.token = it.token
+                            VariablesGlobales.user_id = it.user.id
+                            if (checkbox.isChecked) {
+                                sharedPreferences.edit()
+                                    .putString("token", it.token)
+                                    .putInt("user_id", it.user.id)
+                                    .putBoolean("recordar", true)
+                                    .apply()
+                            } else {
+                                sharedPreferences.edit().clear().apply()
+                            }
+                            val intent = Intent(this@MainActivity, ExpedientesActivity::class.java)
+                            startActivity(intent)
+                        }
+                    } else {
+                        Log.d("API", "ERROR: " + response.code())
+                        Toast.makeText(this@MainActivity, "Usuario o contraseña incorrectos", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                override fun onFailure(call: Call<Usuario>, t: Throwable) {
+                    Log.d("API", "Fallo llamada a la API: " + t.message)
+                    Toast.makeText(this@MainActivity, "Error: ${t.message}", Toast.LENGTH_SHORT).show()
+                }
+            })
 
-            // Guardar solo si la casilla está marcada
-            if (checkbox.isChecked) {
-                sharedPreferences.edit()
-                    .putString("usuario", usuarioTexto)
-                    .putBoolean("recordar", true)
-                    .apply()
-            } else {
-                sharedPreferences.edit().clear().apply()
-            }
-            val intent = Intent(this, ExpedientesActivity::class.java).apply {
-                putExtra("usuario", usuario.text.toString())
-            }
-            startActivity(intent)
         }
     }
 }
