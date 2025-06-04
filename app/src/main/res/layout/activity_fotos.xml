@@ -20,24 +20,25 @@
         app:layout_constraintStart_toStartOf="parent" />
 
     <ScrollView
-        android:layout_width="407dp"
-        android:layout_height="646dp"
+        android:layout_width="411dp"
+        android:layout_height="575dp"
         android:padding="16dp"
         app:layout_constraintBottom_toTopOf="@id/enviarButton"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.976">
+        app:layout_constraintVertical_bias="1.0">
 
         <LinearLayout
+            android:id="@+id/addLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:id="@+id/addLayout"
             android:orientation="vertical">
+
             <LinearLayout
+                android:id="@+id/contenedor"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:id="@+id/contenedor"
                 android:orientation="vertical">
 
             </LinearLayout>
@@ -46,8 +47,8 @@
                 android:id="@+id/addButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="32dp"
                 android:layout_gravity="center_horizontal"
+                android:layout_marginBottom="32dp"
                 android:text="@string/agregar_nueva_foto"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
