@@ -12,7 +12,7 @@ interface InspeccionDao {
     fun obtenerGuidPorExpediente(expediente: String): String?
 
     @Query("UPDATE Inspecciones SET expediente = :nuevoExpediente, acta = :nuevaActa WHERE guid = :guid")
-    fun actualizarExpedientePorGuid(guid: String, nuevoExpediente: String, nuevaActa: String): Int
+    fun actualizarExpedientePorGuid(guid: String, nuevoExpediente: String, nuevaActa: Int): Int
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     fun insertarInspeccion(inspeccion: Inspeccion): Long

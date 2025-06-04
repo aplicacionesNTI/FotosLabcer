@@ -19,7 +19,6 @@ import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
-import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
@@ -50,16 +49,18 @@ import com.itevebasa.fotoslabcer.conexion.RetrofitClient
 import com.itevebasa.fotoslabcer.daos.InspeccionDao
 import com.itevebasa.fotoslabcer.modelos.DetallesViewModel
 import com.itevebasa.fotoslabcer.modelos.Expediente
-import com.itevebasa.fotoslabcer.modelos.FotoRequest
-import com.itevebasa.fotoslabcer.modelos.FotoResponse
 import com.itevebasa.fotoslabcer.modelos.Inspeccion
 import com.itevebasa.fotoslabcer.modelos.PaginarRequest
 import com.itevebasa.fotoslabcer.modelos.PaginarResponse
-import com.itevebasa.fotoslabcer.modelos.Usuario
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -122,10 +123,10 @@ class FotosActivity: AppCompatActivity()  {
         enviarButton.setOnClickListener {
             mostrarDialogoActa { expediente ->
                 lifecycleScope.launch(Dispatchers.IO) {
-                    /*dao.actualizarExpedientePorGuid(guid!!, expediente.codigoExpediente, expediente.id)
+                    dao.actualizarExpedientePorGuid(guid!!, expediente.codigoExpediente, expediente.id)
                     Toast.makeText(this@FotosActivity, "Fotos enviadas con éxito", Toast.LENGTH_SHORT).show()
                     val intent = Intent(this@FotosActivity, ExpedientesActivity::class.java)
-                    startActivity(intent)*/
+                    startActivity(intent)
                 }
             }
         }
@@ -214,18 +215,9 @@ class FotosActivity: AppCompatActivity()  {
         takePictureLauncher.launch(intent)
     }
 
-
-    // Función para enviar las fotos al servidor
-    private fun uploadPhotos(context: Context, photos: Int) {
-        val progressDialog = Vistas.showProgressDialog(context)
-
-    }
-
     // Metodo que se llama cuando se recibe la respuesta del usuario sobre los permisos
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-    override fun onRequestPermissionsResult(
-        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
-    ) {
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         when (requestCode) {
             Permisos.PERMISSION_REQUEST_CODE -> {
@@ -246,7 +238,7 @@ class FotosActivity: AppCompatActivity()  {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply {
-                setMargins(0, dpToPx(context, 8), 0, dpToPx(context, 8))
+                setMargins(0, Vistas.dpToPx(context, 8), 0, Vistas.dpToPx(context, 8))
             }
             gravity = Gravity.CENTER
             weightSum = 3f
@@ -259,10 +251,10 @@ class FotosActivity: AppCompatActivity()  {
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                     1f
                 ).apply {
-                    setMargins(dpToPx(context, 4), 0, dpToPx(context, 4), 0)
+                    setMargins(Vistas.dpToPx(context, 4), 0, Vistas.dpToPx(context, 4), 0)
                 }
-                radius = dpToPxF(context, 16)
-                cardElevation = dpToPxF(context, 6)
+                radius = Vistas.dpToPxF(context, 16)
+                cardElevation = Vistas.dpToPxF(context, 6)
                 preventCornerOverlap = true
                 useCompatPadding = true
             }
@@ -271,7 +263,7 @@ class FotosActivity: AppCompatActivity()  {
                 id = View.generateViewId()
                 layoutParams = ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
-                    dpToPx(context, 100)
+                    Vistas.dpToPx(context, 100)
                 )
                 scaleType = ImageView.ScaleType.CENTER_CROP
                 setOnClickListener {
@@ -287,6 +279,7 @@ class FotosActivity: AppCompatActivity()  {
         container.addView(rowLayout)
     }
 
+    //Añade a la vista las imágenes ya creadas en la carpeta de la inspección
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private fun mostrarImagenesExistentes(context: Context, container: LinearLayout, guid: String) {
         val dir = File(context.getExternalFilesDir(Environment.DIRECTORY_PICTURES), guid)
@@ -309,7 +302,7 @@ class FotosActivity: AppCompatActivity()  {
                         LinearLayout.LayoutParams.MATCH_PARENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT
                     ).apply {
-                        setMargins(0, dpToPx(context, 8), 0, dpToPx(context, 8))
+                        setMargins(0, Vistas.dpToPx(context, 8), 0, Vistas.dpToPx(context, 8))
                     }
                     gravity = Gravity.CENTER
                     weightSum = 3f
@@ -326,7 +319,7 @@ class FotosActivity: AppCompatActivity()  {
         // Si la última fila tiene menos de 3 imágenes, completar con tarjetas vacías funcionales
         if (itemsInRow in 1..2) {
             repeat(3 - itemsInRow) {
-                val emptyCard = crearCardVaciaPulsable(context, container)
+                val emptyCard = crearCardVaciaPulsable(context)
                 currentRow?.addView(emptyCard)
             }
         }
@@ -340,10 +333,10 @@ class FotosActivity: AppCompatActivity()  {
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 1f
             ).apply {
-                setMargins(dpToPx(context, 4), 0, dpToPx(context, 4), 0)
+                setMargins(Vistas.dpToPx(context, 4), 0, Vistas.dpToPx(context, 4), 0)
             }
-            radius = dpToPxF(context, 16)
-            cardElevation = dpToPxF(context, 6)
+            radius = Vistas.dpToPxF(context, 16)
+            cardElevation = Vistas.dpToPxF(context, 6)
             preventCornerOverlap = true
             useCompatPadding = true
         }
@@ -351,7 +344,7 @@ class FotosActivity: AppCompatActivity()  {
         val imageView = ImageView(context).apply {
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                dpToPx(context, 100)
+                Vistas.dpToPx(context, 100)
             )
             scaleType = ImageView.ScaleType.CENTER_CROP
             setImageURI(uri)
@@ -367,17 +360,17 @@ class FotosActivity: AppCompatActivity()  {
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-    private fun crearCardVaciaPulsable(context: Context, container: LinearLayout): CardView {
+    private fun crearCardVaciaPulsable(context: Context): CardView {
         val cardView = CardView(context).apply {
             layoutParams = LinearLayout.LayoutParams(
                 0,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 1f
             ).apply {
-                setMargins(dpToPx(context, 4), 0, dpToPx(context, 4), 0)
+                setMargins(Vistas.dpToPx(context, 4), 0, Vistas.dpToPx(context, 4), 0)
             }
-            radius = dpToPxF(context, 16)
-            cardElevation = dpToPxF(context, 6)
+            radius = Vistas.dpToPxF(context, 16)
+            cardElevation = Vistas.dpToPxF(context, 6)
             preventCornerOverlap = true
             useCompatPadding = true
         }
@@ -386,7 +379,7 @@ class FotosActivity: AppCompatActivity()  {
             id = View.generateViewId()
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                dpToPx(context, 100)
+                Vistas.dpToPx(context, 100)
             )
             scaleType = ImageView.ScaleType.CENTER_CROP
             setOnClickListener {
@@ -400,34 +393,24 @@ class FotosActivity: AppCompatActivity()  {
         return cardView
     }
 
-    private fun dpToPx(context: Context, dp: Int): Int {
-        return (dp * context.resources.displayMetrics.density).toInt()
-    }
 
-    private fun dpToPxF(context: Context, dp: Int): Float {
-        return dp * context.resources.displayMetrics.density
-    }
-
+    //Muestra el Dialogo de subida de fotos, permite seleccioanr el expediente
     private fun mostrarDialogoActa(onConfirmar: (Expediente) -> Unit) {
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_acta, null)
         val spinner = dialogView.findViewById<Spinner>(R.id.spinner)
         val fotoCountText = dialogView.findViewById<TextView>(R.id.fotoCountText)
-        val paginarRequest = PaginarRequest("", "", 50, VariablesGlobales.user_id)
-        var paginarResponse: PaginarResponse
         val valores = ArrayList<String>()
         val expedientes = ArrayList<Expediente>()
         var expedienteSeleccionado = Expediente()
         val apiService = RetrofitClient.getApiService()
-        apiService.paginarExpedientes(paginarRequest).enqueue(object : Callback<PaginarResponse> {
+        //Obtener lista de últimos expedientes (modificable con reg_mostrar)
+        apiService.paginarExpedientes(PaginarRequest("", "", 10, VariablesGlobales.user_id)).enqueue(object : Callback<PaginarResponse> {
             @SuppressLint("SetTextI18n")
             override fun onResponse(call: Call<PaginarResponse>, response: Response<PaginarResponse>) {
                 if (response.isSuccessful) {
                     response.body()?.let {
-                        paginarResponse = it
-                        for (data in paginarResponse.data){
-                            if (data.codigoExpediente == "2/1/2/0/25-0006"){
-                                valores.add(data.codigoExpediente)
-                            }
+                        for (data in it.data){
+                            valores.add(data.codigoExpediente)
                             expedientes.add(data)
                         }
                         val adapter = ArrayAdapter(this@FotosActivity, android.R.layout.simple_spinner_item, valores)
@@ -440,7 +423,6 @@ class FotosActivity: AppCompatActivity()  {
                         spinner.post {
                             spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                                 override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
-                                    println(valores[position])
                                     for (exp in expedientes){
                                         if (exp.codigoExpediente == valores[position]){
                                             expedienteSeleccionado = exp
@@ -452,21 +434,22 @@ class FotosActivity: AppCompatActivity()  {
                             }
                         }
                         fotoCountText.text = "Tienes ${contarFotosReales()} fotos actualmente"
-                        val extraImages = mutableListOf<String>()
+                        val imagenFiles = mutableListOf<File>()
                         val dialog = AlertDialog.Builder(this@FotosActivity)
                             .setView(dialogView)
                             .setTitle("Enviar Fotos")
-                            .setCancelable(false) // para evitar cierre accidental
-                            .setPositiveButton("Confirmar", null) // <- null para que NO cierre
+                            .setCancelable(false)
+                            .setPositiveButton("Confirmar", null)
                             .setNegativeButton("Cancelar") { d, _ -> d.dismiss() }
                             .create()
                         dialog.setOnShowListener {
                             val button = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
                             button.setOnClickListener {
-                                val extraImages = mutableListOf<String>()
                                 imageViews.forEach { image ->
-                                    val encoded = Imagenes.encodeImageViewUriToBase64(image, this@FotosActivity)
-                                    if (!encoded.isNullOrBlank()) extraImages.add(encoded)
+                                    val encoded = Imagenes.convertirImagenViewAFile(image)
+                                    if (encoded != null){
+                                        imagenFiles.add(encoded)
+                                    }
                                 }
                                 val progressBar = dialogView.findViewById<ProgressBar>(R.id.progressBar)
                                 progressBar.visibility = View.VISIBLE
@@ -476,31 +459,36 @@ class FotosActivity: AppCompatActivity()  {
 
                                 lifecycleScope.launch {
                                     val errores = mutableListOf<String>()
-                                    val total = extraImages.size
+                                    val total = imagenFiles.size
 
-                                    for ((index, image) in extraImages.withIndex()) {
+                                    for ((index, image) in imagenFiles.withIndex()) {
                                         val codigo = expedienteSeleccionado.codigoExpediente + "_FO${index + 1}"
-                                        val fotoRequest = FotoRequest(codigo, codigo, codigo, VariablesGlobales.user_id, expedienteSeleccionado.id, 9, image)
-
+                                        val fileBody = image.asRequestBody("image/jpeg".toMediaTypeOrNull())
+                                        val filePart = MultipartBody.Part.createFormData("file", image.name, fileBody)
+                                        fun toPart(value: Any): RequestBody =
+                                            value.toString().toRequestBody("text/plain".toMediaTypeOrNull())
                                         val success = withContext(Dispatchers.IO) {
                                             try {
-                                                val response = RetrofitClient.getApiService().subirFoto(fotoRequest).execute()
+                                                val response = RetrofitClient.getApiService().subirFoto(filePart,
+                                                    toPart(codigo),
+                                                    toPart(codigo),
+                                                    toPart(codigo),
+                                                    toPart(VariablesGlobales.user_id),
+                                                    toPart(expedienteSeleccionado.id),
+                                                    toPart(9)).execute()
                                                 response.isSuccessful
                                             } catch (e: Exception) {
                                                 false
                                             }
                                         }
-
                                         if (!success) {
                                             errores.add(codigo)
                                         }
-                                        envioText.setText("Enviando " + fotoRequest.nombre)
+                                        envioText.setText("Enviando " + codigo)
                                         progressBar.progress = ((index + 1) * 100) / total
                                         delay(200)
                                     }
-
                                     progressBar.visibility = View.GONE
-
                                     if (errores.isNotEmpty()) {
                                         AlertDialog.Builder(this@FotosActivity)
                                             .setTitle("Errores")
@@ -515,7 +503,6 @@ class FotosActivity: AppCompatActivity()  {
                                 }
                             }
                         }
-
                         dialog.show()
                     }
                 } else {
@@ -530,6 +517,7 @@ class FotosActivity: AppCompatActivity()  {
 
     }
 
+    //Cuenta la cantidad de ImageViews que tienen foto
     fun contarFotosReales(): Int {
         return imageViews.count { imageView ->
             imageView.drawable != null

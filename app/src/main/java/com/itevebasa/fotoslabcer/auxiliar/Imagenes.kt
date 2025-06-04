@@ -14,6 +14,7 @@ import android.util.Base64
 import android.util.Log
 import android.widget.ImageView
 import androidx.core.graphics.createBitmap
+import androidx.core.net.toFile
 import androidx.exifinterface.media.ExifInterface
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -121,9 +122,18 @@ class Imagenes {
                 val inputStream = context.contentResolver.openInputStream(uri) ?: return null
                 val byteArray = inputStream.readBytes()  // Leer los bytes de la imagen
                 inputStream.close()
-
-                // Convertir los bytes a Base64
                 Base64.encodeToString(byteArray, Base64.NO_WRAP)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                null
+            }
+        }
+
+        //Convierte un ImageView a tipo File
+        fun convertirImagenViewAFile(imageView: ImageView): File? {
+            val uri = imageView.tag as? Uri ?: return null
+            return try {
+                uri.toFile()
             } catch (e: Exception) {
                 e.printStackTrace()
                 null
@@ -181,5 +191,7 @@ class Imagenes {
             val seconds = ((absoluteCoordinate - degrees - minutes / 60.0) * 3600).toInt()
             return "$degrees/1,$minutes/1,$seconds/1"
         }
+
+
     }
 }

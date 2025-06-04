@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">FotosLabcer</string>
     <string name="usuario">Usuario:</string>
-    <string name="contrase_a">Contraseña</string>
+    <string name="contrase_a">Contraseña:</string>
     <string name="fotos_labcer">Fotos Labcer</string>
     <string name="preview_foto">Preview Foto</string>
     <string name="volver">Volver</string>
