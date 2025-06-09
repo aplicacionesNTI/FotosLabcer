@@ -291,7 +291,7 @@ class FotosActivity: AppCompatActivity()  {
 
         val imagesPerRow = 3
         var currentRow: LinearLayout? = null
-        var itemsInRow = 0
+
 
         imageFiles.forEachIndexed { index, file ->
             // Crea una nueva fila cada 'imagesPerRow' imágenes o si es la primera imagen
