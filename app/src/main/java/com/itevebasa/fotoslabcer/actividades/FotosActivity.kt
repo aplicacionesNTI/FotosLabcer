@@ -294,8 +294,8 @@ class FotosActivity: AppCompatActivity()  {
         var itemsInRow = 0
 
         imageFiles.forEachIndexed { index, file ->
+            // Crea una nueva fila cada 'imagesPerRow' imágenes o si es la primera imagen
             if (index % imagesPerRow == 0) {
-                // Crea nueva fila
                 currentRow = LinearLayout(context).apply {
                     orientation = LinearLayout.HORIZONTAL
                     layoutParams = LinearLayout.LayoutParams(
@@ -304,23 +304,81 @@ class FotosActivity: AppCompatActivity()  {
                     ).apply {
                         setMargins(0, Vistas.dpToPx(context, 8), 0, Vistas.dpToPx(context, 8))
                     }
-                    gravity = Gravity.CENTER
-                    weightSum = 3f
+                    gravity = Gravity.CENTER_HORIZONTAL // O Gravity.CENTER dependiendo de lo que necesites
+                    // weightSum no es estrictamente necesario si los hijos tienen layout_weight y ancho 0dp,
+                    // pero si lo usas, asegúrate de que coincida con la suma de los pesos.
+                    // weightSum = imagesPerRow.toFloat() // O 3f si siempre esperas 3 columnas visualmente
                 }
                 container.addView(currentRow)
-                itemsInRow = 0
             }
 
-            val cardView = crearCardConImagen(context, container, Uri.fromFile(file))
-            currentRow?.addView(cardView)
-            itemsInRow++
+            // Asegúrate de que currentRow no sea null (debería haberse creado arriba)
+            currentRow?.let { row ->
+                val cardView = CardView(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(
+                        0, // Ancho 0dp para que layout_weight funcione
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        1f  // Cada CardView ocupa 1 parte del peso total
+                    ).apply {
+                        setMargins(Vistas.dpToPx(context, 4), 0, Vistas.dpToPx(context, 4), 0)
+                    }
+                    radius = Vistas.dpToPxF(context, 16)
+                    cardElevation = Vistas.dpToPxF(context, 6)
+                    preventCornerOverlap = true
+                    useCompatPadding = true // Esto añade padding para las sombras, considera si lo necesitas con márgenes
+                }
+
+                val imageView = ImageView(context).apply {
+                    id = View.generateViewId() // Genera un ID único para cada ImageView
+                    layoutParams = ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        Vistas.dpToPx(context, 100) // Altura fija, ajusta según necesidad
+                    )
+                    scaleType = ImageView.ScaleType.CENTER_CROP
+                    // Cargar la imagen desde el archivo
+                    val imageUri = FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.provider",
+                        file
+                    )
+                    setImageURI(imageUri)
+                    tag = imageUri // Guardar el URI en el tag para referencia futura
+
+                    setOnClickListener {
+                        // Reutiliza tu lógica para mostrar la previsualización o abrir la cámara
+                        // Podrías necesitar pasar el CardView y el container (LinearLayout principal)
+                        openImagePreview(cardView, container, this)
+                    }
+                }
+                imageViews.add(imageView) // Añade a tu lista global si es necesario
+                cardView.addView(imageView)
+                row.addView(cardView)
+            }
         }
 
-        // Si la última fila tiene menos de 3 imágenes, completar con tarjetas vacías funcionales
-        if (itemsInRow in 1..2) {
-            repeat(3 - itemsInRow) {
-                val emptyCard = crearCardVaciaPulsable(context)
-                currentRow?.addView(emptyCard)
+        // (Opcional) Si la última fila no está completa (p.ej. 1 o 2 imágenes en una fila de 3),
+        // y quieres que los elementos se distribuyan ocupando el espacio de 3,
+        // puedes añadir CardViews vacíos o ajustar los pesos.
+        // O, si usas Gravity.START en el LinearLayout de la fila, se alinearán a la izquierda.
+        // Si usas Gravity.CENTER_HORIZONTAL, la fila en sí se centrará, pero los elementos dentro de ella
+        // se distribuirán según sus pesos.
+
+        // Si quieres que la última fila siempre parezca tener 3 espacios, incluso si algunos están vacíos:
+        val remainingCells = imagesPerRow - (imageFiles.size % imagesPerRow)
+        if (imageFiles.isNotEmpty() && remainingCells != imagesPerRow && remainingCells > 0) {
+            currentRow?.let { row ->
+                for (i in 0 until remainingCells) {
+                    val emptySpace = View(context).apply { // Puedes usar un FrameLayout o un Space si prefieres
+                        layoutParams = LinearLayout.LayoutParams(
+                            0,
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            1f // Ocupa el espacio restante
+                        ).apply {
+                            setMargins(Vistas.dpToPx(context, 4), 0, Vistas.dpToPx(context, 4), 0)
+                        }
+                    }
+                    row.addView(emptySpace)
+                }
             }
         }
     }
